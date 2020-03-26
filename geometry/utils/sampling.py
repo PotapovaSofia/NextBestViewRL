@@ -1,23 +1,4 @@
-import yaml
-import pywavefront
-from yaml import CLoader as Loader, CDumper as Dumper
 import numpy as np
-
-def get_config(path):
-    with open(path, 'r') as stream:
-        config = yaml.load(stream, Loader=Loader)
-    return config
-
-def process_vertices(vertices):
-    '''Centering and scaling'''
-    centroid = vertices.mean(axis=0)
-#     print(centroid)
-    centered = vertices-centroid
-    max_dim = abs(centered.max(axis=0) - centered.min(axis=0))
-#     print(max_dim)
-    max_dim = max(max_dim)
-    centered/=max_dim
-    return centered
 
 
 def fibonacci_sphere_sampling(samples=1, randomize=True, radius=1.0, positive_z=False):
@@ -49,3 +30,15 @@ def fibonacci_sphere_sampling(samples=1, randomize=True, radius=1.0, positive_z=
             points.append([radius * x, radius * y, radius * z])
 
     return points
+
+
+def generate_sunflower_sphere_points(num_points=100):
+    indices = np.arange(0, num_points, dtype=float) + 0.5
+
+    phi = np.arccos(1 - 2 * indices / num_points)
+    theta = np.pi * (1 + 5 ** 0.5) * indices
+
+    x, y, z = np.cos(theta) * np.sin(phi), np.sin(theta) * np.sin(phi), np.cos(phi)
+    points = np.vstack([x, y, z]).T
+    return points, phi, theta
+
