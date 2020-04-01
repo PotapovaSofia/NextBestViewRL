@@ -27,6 +27,11 @@ RUN pip install imageio
 RUN pip install jupyter
 RUN pip install pytorch3d
 RUN pip install K3D
+RUN pip install Cython
+RUN pip install gym
+RUN conda install -c conda-forge igl
+RUN conda install -c conda-forge pyembree
+
 
 ENV PYTHONPATH="$PYTHONPATH:/tf"
 
