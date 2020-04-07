@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 import torch
 import torch.nn as nn
@@ -32,18 +33,18 @@ class DQN(nn.Module):
             q_value = self.forward(state)
             action  = q_value.max(1)[1].data[0]
         else:
-            action = random.randrange(env.action_space.n)
+            action = random.randrange(self.num_actions)
         return action
     
     
     
 class CnnDQN(nn.Module):
-    def __init__(self, input_shape, num_actions):
+    def __init__(self, input_shape, num_actions, gamma=0.99, learning_rate=0.001):
         super().__init__()
         
         self.input_shape = input_shape
-        # TODO action input
         self.num_actions = num_actions
+        self.gamma = gamma
         
         self.features = nn.Sequential(
             nn.Conv2d(input_shape[0], 32, kernel_size=8, stride=4),
@@ -58,13 +59,13 @@ class CnnDQN(nn.Module):
             nn.ReLU()
         )
         
-        # concat with action_num
-        
         self.fc = nn.Sequential(
             nn.Linear(self.feature_size(), 512),
             nn.ReLU(),
             nn.Linear(512, self.num_actions)
         )
+
+        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
         
     def forward(self, x):
         x = self.features(x)
@@ -82,34 +83,32 @@ class CnnDQN(nn.Module):
             action  = q_value.max(1)[1].item()
             print("Action: ", action)
         else:
-            action = random.randrange(env.action_space.n)
+            action = random.randrange(self.num_actions)
             print("Action: ", action, "(random)")
         return action
     
-    @staticmethod
-    def compute_td_loss(batch_size):
-        state, action, reward, next_state, done = replay_buffer.sample(batch_size)
-
-        q_values      = model(state)
-        next_q_values = model(next_state)
+    def compute_td_loss(self, state, action, reward, next_state, done):
+        q_values      = self.forward(state)
+        next_q_values = self.forward(next_state)
 
         q_value          = q_values.gather(1, action.unsqueeze(1)).squeeze(1)
         next_q_value     = next_q_values.max(1)[0]
-        expected_q_value = reward + gamma * next_q_value * (1 - done)
+        expected_q_value = reward + self.gamma * next_q_value * (1 - done)
 
         loss = torch.mean((q_value - expected_q_value.detach()) ** 2)
-        optimizer.zero_grad()
+        self.optimizer.zero_grad()
         loss.backward()
-        optimizer.step()
+        self.optimizer.step()
         return loss
 
 
 class CnnDQNA(nn.Module):
-    def __init__(self, input_shape, num_actions):
+    def __init__(self, input_shape, num_actions, gamma=0.99, learning_rate=0.001):
         super().__init__()
         
         self.input_shape = input_shape
         self.num_actions = num_actions
+        self.gamma = gamma
         
         self.image_vector_size = 512
         
@@ -136,6 +135,8 @@ class CnnDQNA(nn.Module):
             nn.ReLU(),
             nn.Linear(64, 1)
         )
+
+        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
         
     def forward(self, state, action):
         state = self.cnn_features(state)
@@ -154,36 +155,34 @@ class CnnDQNA(nn.Module):
     def act(self, state, epsilon):
         if random.random() > epsilon:
             q_values = []
+            state   = Variable(torch.FloatTensor(np.float32(state)).unsqueeze(0), volatile=True)
             for action in range(self.num_actions):
-                state   = Variable(torch.FloatTensor(np.float32(state)).unsqueeze(0), volatile=True)
                 action  = Variable(torch.FloatTensor([action]).unsqueeze(0), volatile=True)
                 q_value = self.forward(state, action)
                 q_values.append(q_value.item())
-            best_action  = np.argmax(q_values)
+            action  = np.argmax(q_values)
             print("Action: ", action)
         else:
-            action = random.randrange(env.action_space.n)
+            action = random.randrange(self.num_actions)
             print("Action: ", action, "(random)")
         return action
 
-    def compute_td_loss(self, batch_size):
-        state, action, reward, next_state, done = replay_buffer.sample(batch_size)
-
-        q_value = model(state, action).squeeze(1)
+    def compute_td_loss(self, state, action, reward, next_state, done):
+        q_value = self.forward(state, action).squeeze(1)
 
         next_q_values = []
-        for batch_idx in range(batch_size):
+        for batch_idx in range(state.shape[0]):
             next_q_value = -np.inf
-            for action in range(self.num_actions):
+            for next_action in range(self.num_actions):
                 next_action = Variable(torch.FloatTensor([next_action])).unsqueeze(0)
-                pred = model(next_state[batch_idx].unsqueeze(0), next_action).item()
+                pred = self.forward(next_state[batch_idx].unsqueeze(0), next_action).item()
                 next_q_value = max(next_q_value, pred)
             next_q_values.append(next_q_value)
 
-        expected_q_value = reward + gamma * next_q_value * (1 - done)
+        expected_q_value = reward + self.gamma * next_q_value * (1 - done)
 
         loss = torch.mean((q_value - expected_q_value) ** 2)
-        optimizer.zero_grad()
+        self.optimizer.zero_grad()
         loss.backward()
-        optimizer.step()
+        self.optimizer.step()
         return loss
