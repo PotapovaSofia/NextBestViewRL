@@ -249,3 +249,5 @@ class ImageToPyTorch(gym.ObservationWrapper):
 
 def wrap_pytorch(env):
     return ImageToPyTorch(env)
+
+
