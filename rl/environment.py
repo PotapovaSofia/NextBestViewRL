@@ -1,5 +1,8 @@
 import numpy as np
+import os
+import random
 import gym
+import k3d
 from gym import spaces
 from pypoisson import poisson_reconstruction
 
@@ -13,20 +16,21 @@ class EnvError(Exception):
 
 class Environment(gym.Env):
     def __init__(self,
-                 model_path="./data/Pyramid.obj",
+                 models_path=None,
+                 model_path=None,
                  number_of_view_points=100,
                  similarity_threshold=0.95,
+                 image_size=512,
                  illustrate=False):
         super().__init__()
 
         self.model_path = model_path
+        self.models_path = models_path
         self.number_of_view_points = number_of_view_points
+        self.image_size = image_size
         self.illustrate = illustrate
 
         self.action_space = spaces.Discrete(number_of_view_points)
-        
-        image_size = 512 # model.raycaster.resolution_image
-
         self.observation_space = spaces.Dict({
             # 'points':  spaces.Box(-np.inf, np.inf, (MAX_POINS_CNT, 3), dtype=np.float32),
             # 'normals': spaces.Box(-np.inf, np.inf, (MAX_POINS_CNT, 3), dtype=np.float32),
@@ -47,7 +51,12 @@ class Environment(gym.Env):
         Reset the environment for new episode.
         Randomly (or not) generate CAD model for this episode.
         """
-        self.model = Model(self.model_path)
+        if self.model_path is not None:
+            model_path = self.model_path
+        elif self.models_path is not None:
+            model_path = os.path.join(self.models_path,
+                                      random.sample(os.listdir(self.models_path), 1)[0])
+        self.model = Model(model_path, resolution_image=self.image_size)
         self.model.generate_view_points(self.number_of_view_points)
         
         if self.illustrate:
@@ -148,10 +157,10 @@ class CombiningObservationsWrapper(gym.Wrapper):
 
 
 class StepPenaltyRewardWrapper(gym.RewardWrapper):
-    def __init__(self, env):
+    def __init__(self, env, weight=1.0):
         super().__init__(env)
         
-        self._similarity_reward_weight = 1.0
+        self._similarity_reward_weight = weight
             
     def reward(self, reward):
         # THINK ABOUT

@@ -35,19 +35,15 @@ class Observation:
         else:
             self.depth_map = depth_map
             self.normals_image = normals_image
-    
-    
-    @property
-    def size(self):
-        return self.face_indexes.shape[0]
-    
-    
-    def transform(self, transform):
-        self.points = transform_points(self.points, transform)
-        self.normals = transform_points(self.normals, transform,
-                                        translation=None)
-        
-        
+
+    def __del__(self):
+        del self.points
+        del self.normals
+        del self.vertex_indexes
+        del self.face_indexes
+        del self.depth_map
+        del self.normals_image
+
     def __add__(self, other):
         points = np.concatenate([self.points, other.points])
         normals = np.concatenate([self.normals, other.normals])
@@ -62,20 +58,32 @@ class Observation:
         
         return Observation(points, normals, vertex_indexes, face_indexes, depth_map, normals_image)
         
+    @property
+    def size(self):
+        return self.face_indexes.shape[0]
+    
+    def transform(self, transform):
+        self.points = transform_points(self.points, transform)
+        self.normals = transform_points(self.normals, transform,
+                                        translation=None)
         
     def illustrate(self, plot=None, size=0.05):
         return illustrate_points(self.points, plot=plot, size=size)
     
     
 class Model:
-    def __init__(self, model_path):
+    def __init__(self, model_path, resolution_image=512):
         self.mesh = self.load_mesh(model_path)
         self.transform = np.eye(4)
-        
+        self.resolution_image = resolution_image
+ 
         self.raycaster = self.prepare_raycaster()
         
         self.view_points = []
-    
+
+    def __del__(self):
+        del self.mesh
+        del self.raycaster
     
     def load_mesh(self, mesh_path, shape_fabrication_extent=10.0):
         mesh = trimesh.load_mesh(mesh_path)
@@ -86,7 +94,7 @@ class Model:
         return mesh
     
     def prepare_raycaster(self):
-        raycaster = RaycastingImaging()
+        raycaster = RaycastingImaging(resolution_image=self.resolution_image)
         raycaster.prepare(scanning_radius=np.max(self.mesh.bounding_box.extents) + 1.0)
         return raycaster
     

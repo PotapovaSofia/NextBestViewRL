@@ -6,10 +6,10 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.autograd as autograd 
 import torch.nn.functional as F
+from rl.utils import variable_fun
 
 USE_CUDA = torch.cuda.is_available()
-Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs).cuda() \
-    if USE_CUDA else autograd.Variable(*args, **kwargs)
+Variable = variable_fun(torch.cuda.current_device())
 
 
 class DQN(nn.Module):

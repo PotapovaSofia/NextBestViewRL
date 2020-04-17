@@ -10,6 +10,10 @@ class RaycastingImaging:
 
         self.rays_screen_coords, self.rays_origins, self.rays_directions = None, None, None
 
+    def __del__(self):
+        del self.rays_screen_coords
+        del self.rays_origins
+        del self.rays_directions
         
     def prepare(self, scanning_radius):
         # scanning radius is determined from the mesh extent
