@@ -186,3 +186,66 @@ class CnnDQNA(nn.Module):
         loss.backward()
         self.optimizer.step()
         return loss
+
+
+class VoxelDQN(nn.Module):
+    def __init__(self, input_shape, num_actions, gamma=0.99, learning_rate=0.001):
+        super().__init__()
+
+        self.input_shape = input_shape
+        self.num_actions = num_actions
+        self.gamma = gamma
+
+        self.features = nn.Sequential(
+            nn.Conv2d(input_shape[0], 64, kernel_size=8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=5, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 32, kernel_size=3, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, kernel_size=3, stride=1),
+            nn.ReLU()
+        )
+
+        self.fc = nn.Sequential(
+            nn.Linear(self.feature_size(), 128),
+            nn.ReLU(),
+            nn.Linear(128, self.num_actions)
+        )
+        
+        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return x
+
+    def feature_size(self):
+        return self.features(autograd.Variable(torch.zeros(1, *self.input_shape))).view(1, -1).size(1)
+
+    def act(self, state, epsilon):
+        if random.random() > epsilon:
+            state   = Variable(torch.FloatTensor(np.float32(state)).unsqueeze(0), volatile=True)
+            q_value = self.forward(state)
+            action  = q_value.max(1)[1].item()
+            print("Action: ", action)
+        else:
+            action = random.randrange(env.action_space.n)
+            print("Action: ", action, "(random)")
+        return action
+        
+    def compute_td_loss(self, state, action, reward, next_state, done):
+        q_values      = self.forward(state)
+        next_q_values = self.forward(next_state)
+
+        q_value          = q_values.gather(1, action.unsqueeze(1)).squeeze(1)
+        next_q_value     = next_q_values.max(1)[0]
+        expected_q_value = reward + self.gamma * next_q_value * (1 - done)
+
+        loss = torch.mean((q_value - expected_q_value.detach()) ** 2)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return loss
+

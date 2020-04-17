@@ -7,7 +7,7 @@ from gym import spaces
 from pypoisson import poisson_reconstruction
 
 from geometry.model import Model, combine_observations, get_mesh
-from geometry.utils.visualisation import illustrate_points, illustrate_mesh
+from geometry.utils.visualisation import illustrate_points, illustrate_mesh, illustrate_voxels
 
 
 class EnvError(Exception):
@@ -210,6 +210,47 @@ class DepthMapWrapper(gym.ObservationWrapper):
         if self.last_observation is not None:
             self.env.render(action, self.last_observation)
     
+    def final_reward(self):
+        return self.env.final_reward()
+
+
+class VoxelGridWrapper(gym.ObservationWrapper):
+    def __init__(self, env, grid_shape=(64, 64, 64), illustrate=False):
+        super().__init__(env)
+
+        self.grid_shape = grid_shape
+        self.illustrate = illustrate
+        
+        self.observation_space = spaces.Box(0, 1, grid_shape, dtype=bool)
+
+        self.bounds = None
+        self.plot = None
+
+    def reset(self):
+        observation, action = self.env.reset()
+        self.bounds = env.model.mesh.bounds
+        
+        if self.illustrate:
+            self.plot = k3d.plot(name='wrapper')
+            self.plot.display()
+
+        return self.observation(observation), action
+
+    def observation(self, observation):
+        voxel_grid = np.zeros(self.grid_shape)
+
+        points = observation.points - self.bounds[0]
+        indices = points * self.grid_shape / (self.bounds[1] - self.bounds[0])
+        indices = indices.astype(np.uint32)
+        indices = np.unique(indices, axis=0)
+        indices = np.clip(indices, 0, np.array(self.grid_shape) - 1)
+        for ind in indices:
+            voxel_grid[ind[0], ind[1], ind[2]] = True
+        return voxel_grid
+
+    def render(self, action, observation):
+        self.plot = illustrate_voxels(observation, self.plot)
+
     def final_reward(self):
         return self.env.final_reward()
 

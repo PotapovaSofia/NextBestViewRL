@@ -8,6 +8,7 @@ def illustrate_points(points, plot=None, size=0.1):
     plt_points.shader='3d'
     return plot
 
+
 def illustrate_mesh(vertices, faces, plot=None):
     if plot is None:
         plot = k3d.plot()
@@ -17,5 +18,14 @@ def illustrate_mesh(vertices, faces, plot=None):
                            attribute=vertices[:, 2])
 
     plot += plt_surface
+    return plot
+
+
+def illustrate_voxels(voxels, plot=None):
+    if plot is None:
+        plot = k3d.plot()
+
+    plt_voxels = k3d.voxels(voxels)
+    plot += plt_voxels
     return plot
 
