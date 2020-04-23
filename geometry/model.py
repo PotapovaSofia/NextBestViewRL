@@ -23,8 +23,11 @@ class ViewPoint:
         
 
 class Observation:
-    def __init__(self, points, normals, vertex_indexes, face_indexes, depth_map, normals_image):
+    def __init__(self, points, occluded_points, normals,
+                 vertex_indexes, face_indexes, depth_map,
+                 normals_image):
         self.points = points
+        self.occluded_points = occluded_points
         self.normals = normals
         self.vertex_indexes = vertex_indexes
         self.face_indexes = face_indexes
@@ -44,8 +47,17 @@ class Observation:
         del self.depth_map
         del self.normals_image
 
+    def transform(self, transform):
+        self.points = transform_points(self.points, transform)
+        self.occluded_points = transform_points(self.occluded_points,
+                                                transform)
+        self.normals = transform_points(self.normals, transform,
+                                        translation=None)
+        
     def __add__(self, other):
         points = np.concatenate([self.points, other.points])
+        occluded_points = np.concatenate([self.occluded_points,
+                                          other.occluded_points])
         normals = np.concatenate([self.normals, other.normals])
         
         vertex_indexes = np.unique(np.concatenate([self.vertex_indexes,
@@ -56,16 +68,9 @@ class Observation:
         depth_map = np.concatenate([self.depth_map, other.depth_map])
         normals_image = np.concatenate([self.normals_image, other.normals_image])
         
-        return Observation(points, normals, vertex_indexes, face_indexes, depth_map, normals_image)
-        
-    @property
-    def size(self):
-        return self.face_indexes.shape[0]
-    
-    def transform(self, transform):
-        self.points = transform_points(self.points, transform)
-        self.normals = transform_points(self.normals, transform,
-                                        translation=None)
+        return Observation(points, occluded_points, normals,
+                           vertex_indexes, face_indexes,
+                           depth_map, normals_image)
         
     def illustrate(self, plot=None, size=0.05):
         return illustrate_points(self.points, plot=plot, size=size)
@@ -74,6 +79,7 @@ class Observation:
 class Model:
     def __init__(self, model_path, resolution_image=512):
         self.mesh = self.load_mesh(model_path)
+        self.bounds = self.mesh.bounds
         self.transform = np.eye(4)
         self.resolution_image = resolution_image
  
@@ -146,14 +152,16 @@ class Model:
         normals_image = self.raycaster.points_to_image(normals, ray_indexes,
                                                        assign_channels=[0, 1, 2])
 
+        occluded_points = self.get_occluded_points(points[::4], size=64)
+
         observation = Observation(noisy_points,
+                                  occluded_points,
                                   normals,
                                   mesh_vertex_indexes,
                                   mesh_face_indexes,
                                   depth_map,
                                   normals_image)
         return observation
-
 
     def get_observation(self, view_point_idx):
         view_point = self.view_points[view_point_idx]
@@ -166,7 +174,15 @@ class Model:
         
         return observation
     
-    
+    def get_occluded_points(self, surface_points, size=64):
+        step = (self.mesh.bounds[1] - self.mesh.bounds[0]).max() / size
+        # size //= 2
+        cum_sums = np.tile(np.arange(1, size + 1), (len(surface_points), 1)) * step
+        occluded_points = np.tile(surface_points, (size, 1, 1)).transpose(1, 0, 2)
+        occluded_points[:,:,2] -= cum_sums
+        occluded_points = np.concatenate(occluded_points, axis=0)
+        return np.asarray(occluded_points)
+
     def surface_similarity(self, reconstructed_vertices, reconstructed_faces):
         return hausdorff(self.mesh.vertices,
                          self.mesh.faces,
@@ -193,6 +209,7 @@ def get_mesh(observation):
 
 def combine_observations(observations):
     points = np.concatenate([observation.points for observation in observations])
+    occluded_points = np.concatenate([observation.occluded_points for observation in observations])
     normals = np.concatenate([observation.normals for observation in observations])
 
     vertex_indexes = np.unique(np.concatenate([observation.vertex_indexes
@@ -203,6 +220,8 @@ def combine_observations(observations):
     depth_map = np.concatenate([observation.depth_map for observation in observations])
     normals_image = np.concatenate([observation.normals_image for observation in observations])
 
-    return Observation(points, normals, vertex_indexes, face_indexes, depth_map, normals_image)
+    return Observation(points, occluded_points, normals,
+                       vertex_indexes, face_indexes,
+                       depth_map, normals_image)
 
 

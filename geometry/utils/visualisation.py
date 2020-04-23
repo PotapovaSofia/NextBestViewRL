@@ -24,8 +24,7 @@ def illustrate_mesh(vertices, faces, plot=None):
 def illustrate_voxels(voxels, plot=None):
     if plot is None:
         plot = k3d.plot()
-
+    
     plt_voxels = k3d.voxels(voxels)
     plot += plt_voxels
     return plot
-
