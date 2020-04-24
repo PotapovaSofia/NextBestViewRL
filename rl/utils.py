@@ -13,8 +13,10 @@ def variable_fun(device):
         if USE_CUDA else autograd.Variable(*args, **kwargs)
 
 
-cnn_device = torch.cuda.current_device()
-Variable = variable_fun(cnn_device)
+# cnn_device = torch.cuda.current_device()
+# Variable = variable_fun(cnn_device)
+Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs)
+
 
 class BufferDevicesBalancer:
     def __init__(self, config={"cuda:0": 200, "cuda:0": 200, "cpu": 5000}):

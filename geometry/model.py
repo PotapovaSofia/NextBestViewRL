@@ -11,7 +11,6 @@ from geometry.utils.transform import from_euler, transform_mesh, transform_point
 from geometry.utils.visualisation import illustrate_points, illustrate_mesh
 
 
-
 class ViewPoint:
     def __init__(self, point, phi, theta):
         self.point = point
@@ -47,13 +46,6 @@ class Observation:
         del self.depth_map
         del self.normals_image
 
-    def transform(self, transform):
-        self.points = transform_points(self.points, transform)
-        self.occluded_points = transform_points(self.occluded_points,
-                                                transform)
-        self.normals = transform_points(self.normals, transform,
-                                        translation=None)
-        
     def __add__(self, other):
         points = np.concatenate([self.points, other.points])
         occluded_points = np.concatenate([self.occluded_points,
@@ -71,6 +63,13 @@ class Observation:
         return Observation(points, occluded_points, normals,
                            vertex_indexes, face_indexes,
                            depth_map, normals_image)
+
+    def transform(self, transform):
+        self.points = transform_points(self.points, transform)
+        self.occluded_points = transform_points(self.occluded_points,
+                                                transform)
+        self.normals = transform_points(self.normals, transform,
+                                        translation=None)
         
     def illustrate(self, plot=None, size=0.05):
         return illustrate_points(self.points, plot=plot, size=size)

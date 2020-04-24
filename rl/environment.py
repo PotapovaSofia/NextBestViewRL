@@ -114,48 +114,6 @@ class Environment(gym.Env):
         return vertices, faces
 
     
-class CombiningObservationsWrapper(gym.Wrapper):
-    def __init__(self, env):
-        super().__init__(env)
-        
-        self._similarity_threshold = env._similarity_threshold
-
-        self.combined_observation = None
-        self.plot = None
-    
-    def reset(self):
-        observation, action = self.env.reset()
-        self.combined_observation = observation
-        
-        if self.env.illustrate:
-            self.plot = k3d.plot(name='wrapper')
-            self.plot.display()
-        return self.combined_observation, action
-  
-    def step(self, action):
-        observation, reward, done, info = self.env.step(action)
-
-        self._combine_observations(observation)
-
-        combined_reward = self.env.step_reward(self.combined_observation)
-        done = done or combined_reward >= self._similarity_threshold
-        
-        new_reward = combined_reward - reward
-        return self.combined_observation, new_reward, done, info
-
-    def render(self, action, observation):
-        self.plot = self.env.render(action, observation, self.plot)
-        
-    def final_reward(self):
-        return self.env.final_reward(self.combined_observation)
-    
-    def _combine_observations(self, observation):
-        if self.combined_observation is None:
-            raise EnvError("Environment wasn't reset")
-        
-        self.combined_observation += observation
-
-
 class StepPenaltyRewardWrapper(gym.RewardWrapper):
     def __init__(self, env, weight=1.0):
         super().__init__(env)
@@ -220,9 +178,11 @@ class VoxelGridWrapper(gym.ObservationWrapper):
 
         self.grid_shape = grid_shape
         self.illustrate = illustrate
-        
+
         self.observation_space = spaces.Box(0, 1, grid_shape, dtype=bool)
 
+        self.mesh_grid = None
+        self.gt_size = None
         self.bounds = None
         self.plot = None
 
@@ -230,6 +190,10 @@ class VoxelGridWrapper(gym.ObservationWrapper):
         observation, action = self.env.reset()
         self.bounds = env.model.mesh.bounds
         
+        self.mesh_grid = VoxelGrid()
+        self.mesh_grid.build(self.env.model.mesh.vertices, self.bounds)
+        self.gt_size = np.count_nonzero(self.mesh_grid.surface_grid)
+
         if self.illustrate:
             self.plot = k3d.plot(name='wrapper')
             self.plot.display()
@@ -237,20 +201,61 @@ class VoxelGridWrapper(gym.ObservationWrapper):
         return self.observation(observation), action
 
     def observation(self, observation):
-        voxel_grid = np.zeros(self.grid_shape)
+        grid = VoxelGrid()
+        grid.build(observation.points, self.bounds, observation.occluded_points)
+        return grid
 
-        points = observation.points - self.bounds[0]
-        indices = points * self.grid_shape / (self.bounds[1] - self.bounds[0])
-        indices = indices.astype(np.uint32)
-        indices = np.unique(indices, axis=0)
-        indices = np.clip(indices, 0, np.array(self.grid_shape) - 1)
-        for ind in indices:
-            voxel_grid[ind[0], ind[1], ind[2]] = True
-        return voxel_grid
-
-    def render(self, action, observation):
-        self.plot = illustrate_voxels(observation, self.plot)
+    def render(self, action, observation, plot=None):
+        if plot is None:
+            plot = self.plot
+        self.plot = observation.illustrate(plot)
 
     def final_reward(self):
         return self.env.final_reward()
+
+    def step_reward(self, observation):
+        intersection = np.count_nonzero(np.logical_and(self.mesh_grid.surface_grid,
+                                                       observation.surface_grid))
+        return intersection / self.gt_size 
+
+
+class CombiningObservationsWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+
+        self._similarity_threshold = 0.95
+
+        self.combined_observation = None
+        self.plot = None
+
+    def reset(self):
+        observation, action = self.env.reset()
+        self.combined_observation = observation
+
+        if self.env.illustrate:
+            self.plot = k3d.plot(name='wrapper')
+            self.plot.display()
+        return self.combined_observation, action
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+
+        self._combine_observations(observation)
+
+        combined_reward = self.env.step_reward(self.combined_observation)
+        done = done or combined_reward >= self._similarity_threshold
+
+        new_reward = combined_reward - reward
+        return self.combined_observation, new_reward, done, info
+
+    def render(self, action, observation):
+        self.plot = self.env.render(action, observation, self.plot)
+
+    def final_reward(self):
+        return self.env.final_reward(self.combined_observation)
+
+    def _combine_observations(self, observation):
+        if self.combined_observation is None:
+            raise EnvError("Environment wasn't reset")
+        self.combined_observation += observation
 
