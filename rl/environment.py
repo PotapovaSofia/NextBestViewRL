@@ -202,7 +202,8 @@ class VoxelGridWrapper(gym.ObservationWrapper):
 
     def render(self, action, observation):
         self.plot.close()
-        self.plot = observation.illustrate()
+        # self.plot = observation.illustrate()
+        self.plot = illustrate_voxels(observation)
         self.plot.display()
 
     def final_reward(self):
@@ -250,4 +251,25 @@ class CombiningObservationsWrapper(gym.Wrapper):
         if self.combined_observation is None:
             raise EnvError("Environment wasn't reset")
         self.combined_observation += observation
+
+
+class VoxelWrapper(gym.ObservationWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+
+        self.grid_shape = self.env.grid_shape
+        self.observation_space = spaces.Box(0, 2, self.grid_shape, dtype=np.uint32)
+
+    def reset(self):
+        observation, action = self.env.reset()
+        return self.observation(observation), action
+
+    def observation(self, observation):
+        return observation.grid()
+
+    def render(self, action, observation):
+        self.env.render(action, observation)
+
+    def final_reward(self):
+        return self.env.final_reward()
 

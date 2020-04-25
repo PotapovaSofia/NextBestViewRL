@@ -39,9 +39,9 @@ class VoxelGrid:
         if plot is None:
             plot = k3d.plot()
 
-        return illustrate_voxels(self.combine_grid(), plot)
+        return illustrate_voxels(self.grid(), plot)
 
-    def combine_grid(self):
+    def grid(self):
         grid = self.surface_grid + self.occlusion_grid
         grid = np.clip(grid, 0, max(self.occlusion_id, self.surface_id))
         return grid

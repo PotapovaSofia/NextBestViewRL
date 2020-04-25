@@ -10,6 +10,7 @@ from rl.utils import variable_fun
 
 USE_CUDA = torch.cuda.is_available()
 Variable = variable_fun(torch.cuda.current_device())
+Variable = variable_fun(1)
 
 
 class DQN(nn.Module):
@@ -231,10 +232,10 @@ class VoxelDQN(nn.Module):
             action  = q_value.max(1)[1].item()
             print("Action: ", action)
         else:
-            action = random.randrange(env.action_space.n)
+            action = random.randrange(self.num_actions)
             print("Action: ", action, "(random)")
         return action
-        
+
     def compute_td_loss(self, state, action, reward, next_state, done):
         q_values      = self.forward(state)
         next_q_values = self.forward(next_state)
