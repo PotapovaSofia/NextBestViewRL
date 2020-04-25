@@ -7,6 +7,7 @@ from gym import spaces
 from pypoisson import poisson_reconstruction
 
 from geometry.model import Model, combine_observations, get_mesh
+from geometry.voxel_grid import VoxelGrid
 from geometry.utils.visualisation import illustrate_points, illustrate_mesh, illustrate_voxels
 
 
@@ -173,30 +174,24 @@ class DepthMapWrapper(gym.ObservationWrapper):
 
 
 class VoxelGridWrapper(gym.ObservationWrapper):
-    def __init__(self, env, grid_shape=(64, 64, 64), illustrate=False):
+    def __init__(self, env, grid_shape=(64, 64, 64)):
         super().__init__(env)
 
         self.grid_shape = grid_shape
-        self.illustrate = illustrate
-
         self.observation_space = spaces.Box(0, 1, grid_shape, dtype=bool)
 
         self.mesh_grid = None
         self.gt_size = None
         self.bounds = None
-        self.plot = None
+        self.plot = k3d.plot(name='wrapper')
 
     def reset(self):
         observation, action = self.env.reset()
-        self.bounds = env.model.mesh.bounds
+        self.bounds = self.env.model.mesh.bounds
         
         self.mesh_grid = VoxelGrid()
         self.mesh_grid.build(self.env.model.mesh.vertices, self.bounds)
         self.gt_size = np.count_nonzero(self.mesh_grid.surface_grid)
-
-        if self.illustrate:
-            self.plot = k3d.plot(name='wrapper')
-            self.plot.display()
 
         return self.observation(observation), action
 
@@ -205,10 +200,10 @@ class VoxelGridWrapper(gym.ObservationWrapper):
         grid.build(observation.points, self.bounds, observation.occluded_points)
         return grid
 
-    def render(self, action, observation, plot=None):
-        if plot is None:
-            plot = self.plot
-        self.plot = observation.illustrate(plot)
+    def render(self, action, observation):
+        self.plot.close()
+        self.plot = observation.illustrate()
+        self.plot.display()
 
     def final_reward(self):
         return self.env.final_reward()
@@ -226,15 +221,11 @@ class CombiningObservationsWrapper(gym.Wrapper):
         self._similarity_threshold = 0.95
 
         self.combined_observation = None
-        self.plot = None
 
     def reset(self):
         observation, action = self.env.reset()
         self.combined_observation = observation
 
-        if self.env.illustrate:
-            self.plot = k3d.plot(name='wrapper')
-            self.plot.display()
         return self.combined_observation, action
 
     def step(self, action):
@@ -246,10 +237,11 @@ class CombiningObservationsWrapper(gym.Wrapper):
         done = done or combined_reward >= self._similarity_threshold
 
         new_reward = combined_reward - reward
+        print(reward, new_reward, combined_reward)
         return self.combined_observation, new_reward, done, info
 
     def render(self, action, observation):
-        self.plot = self.env.render(action, observation, self.plot)
+        self.env.render(action, observation)
 
     def final_reward(self):
         return self.env.final_reward(self.combined_observation)
