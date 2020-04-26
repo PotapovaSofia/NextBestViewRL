@@ -4,6 +4,7 @@ import random
 import gym
 import k3d
 from gym import spaces
+from gym.wrappers import FrameStack, LazyFrames
 from pypoisson import poisson_reconstruction
 
 from geometry.model import Model, combine_observations, get_mesh
@@ -273,3 +274,28 @@ class VoxelWrapper(gym.ObservationWrapper):
     def final_reward(self):
         return self.env.final_reward()
 
+
+class FrameStackWrapper(FrameStack):
+    def __init__(self, env, num_stack, lz4_compress=False):
+        super().__init__(env, num_stack, lz4_compress)
+
+        low = np.concatenate(self.observation_space.low)
+        high = np.concatenate(self.observation_space.high)
+        self.observation_space = spaces.Box(low=low, high=high,
+                                            dtype=self.observation_space.dtype)
+
+    def _get_observation(self):
+        assert len(self.frames) == self.num_stack, (len(self.frames), self.num_stack)
+        observation = LazyFrames(list(self.frames), self.lz4_compress)
+        return np.concatenate(observation)
+
+    def reset(self, **kwargs):
+        observation, action = self.env.reset(**kwargs)
+        [self.frames.append(observation) for _ in range(self.num_stack)]
+        return self._get_observation(), action
+
+    def render(self, action, observation):
+        self.env.render(action, observation)
+
+    def final_reward(self):
+        return self.env.final_reward()
