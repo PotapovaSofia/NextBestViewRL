@@ -13,10 +13,11 @@ def variable_fun(device):
     return lambda *args, **kwargs: autograd.Variable(*args, **kwargs).to(device) \
         if USE_CUDA else autograd.Variable(*args, **kwargs)
 
-
-cnn_device = torch.cuda.current_device()
-Variable = variable_fun(1)
-#Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs)
+if USE_CUDA:
+    cnn_device = torch.cuda.current_device()
+    Variable = variable_fun(1)
+else:
+    Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs)
 
 
 

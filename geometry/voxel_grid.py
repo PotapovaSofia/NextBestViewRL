@@ -34,18 +34,17 @@ class VoxelGrid:
 
         indices = (((points - bounds[0]) * surface_grid.shape) /
                    (bounds[1] - bounds[0])).astype(np.int32)
-        mask = np.all(np.logical_and(indices >= 0, indices < 64), axis=1)
+        mask = np.all(np.logical_and(indices >= 0, indices < self._size), axis=1)
         indices = indices[mask]
-        # indices = np.unique(indices, axis=0)
+        indices = np.unique(indices, axis=0)
 
         for ind in indices:
-            grid[ind[0], ind[1], ind[2]] = self._surface_id
+            surface_grid[ind[0], ind[1], ind[2]] = self._surface_id
 
         if direction is not None:
             occluded_indices = self._get_occluded_grid_indices(indices, direction)
             for ind in occluded_indices:
-                if occlusion_grid[ind[0], ind[1], ind[2]] != self._surface_id:
-                    occlusion_grid[ind[0], ind[1], ind[2]] = self._occlusion_id
+                occlusion_grid[ind[0], ind[1], ind[2]] = self._occlusion_id
         return surface_grid, occlusion_grid
 
     def illustrate(self, plot=None):
