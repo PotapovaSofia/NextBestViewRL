@@ -8,7 +8,7 @@ from gym.wrappers import FrameStack, LazyFrames
 from pypoisson import poisson_reconstruction
 
 from geometry.model import Model, combine_observations, get_mesh
-from geometry.voxel_grid import VoxelGrid
+from geometry.voxel_grid import VoxelGrid, VoxelGridBuilder
 from geometry.utils.visualisation import illustrate_points, illustrate_mesh, illustrate_voxels
 
 
@@ -181,6 +181,8 @@ class VoxelGridWrapper(gym.ObservationWrapper):
         self.grid_shape = grid_shape
         self.observation_space = spaces.Box(0, 1, grid_shape, dtype=bool)
 
+        self.builder = VoxelGridBuilder(grid_shape)
+
         self.mesh_grid = None
         self.gt_size = None
         self.bounds = None
@@ -190,20 +192,16 @@ class VoxelGridWrapper(gym.ObservationWrapper):
         observation, action = self.env.reset()
         self.bounds = self.env.model.bounds
         
-        self.mesh_grid = VoxelGrid(points=self.env.model.mesh.vertices,
-                                   bounds=self.bounds)
+        self.mesh_grid = self.builder.build(self.env.model.mesh.vertices, self.bounds)
         self.gt_size = np.count_nonzero(self.mesh_grid.surface_grid)
 
         return self.observation(observation), action
 
     def observation(self, observation):
-        return VoxelGrid(points=observation.points,
-                         bounds=self.bounds,
-                         direction=observation.direction)
+        return self.builder.build(observation.points, self.bounds, observation.direction)
 
     def render(self, action, observation):
         self.plot.close()
-        # self.plot = observation.illustrate()
         self.plot = illustrate_voxels(observation)
         self.plot.display()
 
