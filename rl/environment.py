@@ -175,13 +175,13 @@ class DepthMapWrapper(gym.ObservationWrapper):
 
 
 class VoxelGridWrapper(gym.ObservationWrapper):
-    def __init__(self, env, grid_shape=(64, 64, 64)):
+    def __init__(self, env, grid_size=64):
         super().__init__(env)
 
-        self.grid_shape = grid_shape
-        self.observation_space = spaces.Box(0, 1, grid_shape, dtype=bool)
+        self.grid_shape = ((grid_size, grid_size, grid_size))
+        self.observation_space = spaces.Box(0, 1, self.grid_shape, dtype=bool)
 
-        self.builder = VoxelGridBuilder(grid_shape)
+        self.builder = VoxelGridBuilder(grid_size)
 
         self.mesh_grid = None
         self.gt_size = None

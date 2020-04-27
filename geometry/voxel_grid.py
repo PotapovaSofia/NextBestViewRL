@@ -55,7 +55,7 @@ class VoxelGridBuilder:
 
         occluded_grid = None
         if direction is not None:
-            occluded_indices = self._get_occluded_indices(indices, direction)
+            occluded_indices = self._get_occluded_indices(surface_indices, direction)
             occluded_grid = self._get_grid_from_indices(occluded_indices,
                                                         id=self._occlusion_id)
         return VoxelGrid(surface_grid, occluded_grid)
