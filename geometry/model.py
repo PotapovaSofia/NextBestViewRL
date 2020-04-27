@@ -22,14 +22,13 @@ class ViewPoint:
         
 
 class Observation:
-    def __init__(self, points, occluded_points, normals,
-                 vertex_indexes, face_indexes, depth_map,
-                 normals_image):
+    def __init__(self, points, normals, vertex_indexes,
+                 face_indexes, direction, depth_map, normals_image):
         self.points = points
-        self.occluded_points = occluded_points
         self.normals = normals
         self.vertex_indexes = vertex_indexes
         self.face_indexes = face_indexes
+        self.direction = direction
         
         if len(depth_map.shape) == 2:
             self.depth_map = np.expand_dims(depth_map, 0)
@@ -43,13 +42,12 @@ class Observation:
         del self.normals
         del self.vertex_indexes
         del self.face_indexes
+        del self.direction
         del self.depth_map
         del self.normals_image
 
     def __add__(self, other):
         points = np.concatenate([self.points, other.points])
-        occluded_points = np.concatenate([self.occluded_points,
-                                          other.occluded_points])
         normals = np.concatenate([self.normals, other.normals])
         
         vertex_indexes = np.unique(np.concatenate([self.vertex_indexes,
@@ -60,14 +58,13 @@ class Observation:
         depth_map = np.concatenate([self.depth_map, other.depth_map])
         normals_image = np.concatenate([self.normals_image, other.normals_image])
         
-        return Observation(points, occluded_points, normals,
+        return Observation(points, normals, self.direction,
                            vertex_indexes, face_indexes,
                            depth_map, normals_image)
 
     def transform(self, transform):
         self.points = transform_points(self.points, transform)
-        self.occluded_points = transform_points(self.occluded_points,
-                                                transform)
+        self.direction = transform_points(self.direction, transform)
         self.normals = transform_points(self.normals, transform,
                                         translation=None)
         
@@ -143,6 +140,7 @@ class Model:
         (ray_indexes,
          points,
          normals,
+         direction,
          mesh_vertex_indexes,
          mesh_face_indexes) = self.raycaster.get_image(self.mesh)
         
@@ -151,13 +149,11 @@ class Model:
         normals_image = self.raycaster.points_to_image(normals, ray_indexes,
                                                        assign_channels=[0, 1, 2])
 
-        occluded_points = self.get_occluded_points(points[::4], size=64)
-
         observation = Observation(noisy_points,
-                                  occluded_points,
                                   normals,
                                   mesh_vertex_indexes,
                                   mesh_face_indexes,
+                                  direction,
                                   depth_map,
                                   normals_image)
         return observation

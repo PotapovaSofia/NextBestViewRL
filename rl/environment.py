@@ -188,18 +188,18 @@ class VoxelGridWrapper(gym.ObservationWrapper):
 
     def reset(self):
         observation, action = self.env.reset()
-        self.bounds = self.env.model.mesh.bounds
+        self.bounds = self.env.model.bounds
         
-        self.mesh_grid = VoxelGrid()
-        self.mesh_grid.build(self.env.model.mesh.vertices, self.bounds)
+        self.mesh_grid = VoxelGrid(points=self.env.model.mesh.vertices,
+                                   bounds=self.bounds)
         self.gt_size = np.count_nonzero(self.mesh_grid.surface_grid)
 
         return self.observation(observation), action
 
     def observation(self, observation):
-        grid = VoxelGrid()
-        grid.build(observation.points, self.bounds, observation.occluded_points)
-        return grid
+        return VoxelGrid(points=observation.points,
+                         bounds=self.bounds,
+                         direction=observation.direction)
 
     def render(self, action, observation):
         self.plot.close()

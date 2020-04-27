@@ -40,7 +40,8 @@ class RaycastingImaging:
         # mesh_face_indexes = np.unique(hit_surfaces_face_indexes)
         mesh_face_indexes = np.unique(mesh_face_indexes)
         mesh_vertex_indexes = np.unique(mesh.faces[mesh_face_indexes])
-        return ray_indexes, points, normals, mesh_vertex_indexes, mesh_face_indexes
+        direction = self.rays_directions[ray_indexes][0]
+        return ray_indexes, points, normals, direction, mesh_vertex_indexes, mesh_face_indexes
 
         # assemble mesh fragment into a submesh
         # nbhood = reindex_zerobased(mesh, mesh_vertex_indexes, mesh_face_indexes)
