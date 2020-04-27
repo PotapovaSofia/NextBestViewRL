@@ -299,3 +299,31 @@ class FrameStackWrapper(FrameStack):
 
     def final_reward(self):
         return self.env.final_reward()
+
+
+class ActionMaskWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.mask = None
+        
+    def reset(self, **kwargs):
+        observation, action = self.env.reset(**kwargs)
+        self.mask = np.ones(self.number_of_view_points).astype(bool)
+        self.mask[action] = False
+        return observation, action, self.mask
+    
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+
+        self.mask[action] = False
+        done = done or self.done()
+        return observation, reward, done, info, self.mask
+
+    def done(self):
+        return np.count_nonzero(self.mask) == 0
+
+    def render(self, action, observation):
+        self.env.render(action, observation)
+
+    def final_reward(self):
+        return self.env.final_reward()
