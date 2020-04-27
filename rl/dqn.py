@@ -79,20 +79,23 @@ class CnnDQN(nn.Module):
     def feature_size(self):
         return self.features(autograd.Variable(torch.zeros(1, *self.input_shape))).view(1, -1).size(1)
     
-    def act(self, state, epsilon):
+    def act(self, state, mask, epsilon):
         if random.random() > epsilon:
             state   = Variable(torch.FloatTensor(np.float32(state)).unsqueeze(0), volatile=True)
+            mask = Variable(torch.FloatTensor(np.float32(mask)), volatile=True)
             q_value = self.forward(state)
+            q_value *= mask
             action  = q_value.max(1)[1].item()
             print("Action: ", action)
         else:
-            action = random.randrange(self.num_actions)
+            action = np.random.choice(np.arange(self.num_actions)[mask])
             print("Action: ", action, "(random)")
         return action
-    
-    def compute_td_loss(self, state, action, reward, next_state, done):
+
+    def compute_td_loss(self, state, action, reward, next_state, done, mask):
         q_values      = self.forward(state)
         next_q_values = self.forward(next_state)
+        next_q_values *= mask
 
         q_value          = q_values.gather(1, action.unsqueeze(1)).squeeze(1)
         next_q_value     = next_q_values.max(1)[0]
@@ -215,7 +218,7 @@ class VoxelDQN(nn.Module):
             nn.ReLU(),
             nn.Linear(128, self.num_actions)
         )
-        
+
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
     def forward(self, x):
@@ -227,14 +230,16 @@ class VoxelDQN(nn.Module):
     def feature_size(self):
         return self.features(autograd.Variable(torch.zeros(1, *self.input_shape))).view(1, -1).size(1)
 
-    def act(self, state, epsilon):
+    def act(self, state, mask, epsilon):
         if random.random() > epsilon:
             state   = Variable(torch.FloatTensor(np.float32(state)).unsqueeze(0), volatile=True)
+            mask = Variable(torch.FloatTensor(np.float32(mask)), volatile=True)
             q_value = self.forward(state)
+            q_value *= mask
             action  = q_value.max(1)[1].item()
             print("Action: ", action)
         else:
-            action = random.randrange(self.num_actions)
+            action = np.random.choice(np.arange(self.num_actions)[mask])
             print("Action: ", action, "(random)")
         return action
 
