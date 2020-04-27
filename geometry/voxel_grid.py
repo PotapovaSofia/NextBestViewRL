@@ -65,7 +65,8 @@ class VoxelGridBuilder:
                    (bounds[1] - bounds[0])).astype(np.int32)
         mask = np.all(np.logical_and(indices >= 0, indices < self._size), axis=1)
         indices = indices[mask]
-        indices = np.unique(indices, axis=0)
+        if len(indices) > 0:
+            indices = np.unique(indices, axis=0)
         return indices
 
     def _get_occluded_indices(self, surface_indices, direction, n=1):
@@ -88,8 +89,10 @@ class VoxelGridBuilder:
 
     def _get_grid_from_indices(self, indices, id=1):
         grid = np.zeros(self._shape)
-        flat_index_array = np.ravel_multi_index(
-            indices.transpose(),
-            grid.shape)
-        np.ravel(grid)[flat_index_array] = id
+        
+        if len(indices) > 0:
+            flat_index_array = np.ravel_multi_index(
+                indices.transpose(),
+                grid.shape)
+            np.ravel(grid)[flat_index_array] = id
         return grid
