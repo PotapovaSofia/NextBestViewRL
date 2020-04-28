@@ -70,6 +70,8 @@ class VoxelGridBuilder:
         return indices
 
     def _get_occluded_indices(self, surface_indices, direction, n=1):
+        if len(surface_indices) == 0:
+            return []
         cum_sums = np.tile(np.arange(self._size * n),
                            (len(surface_indices), 3, 1)) \
                           .transpose(0, 2, 1) \
