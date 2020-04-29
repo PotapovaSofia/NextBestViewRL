@@ -257,7 +257,7 @@ class VoxelWrapper(gym.ObservationWrapper):
         super().__init__(env)
 
         self.grid_shape = self.env.grid_shape
-        self.observation_space = spaces.Box(0, 2, self.grid_shape, dtype=np.uint32)
+        self.observation_space = spaces.Box(0, 2, self.grid_shape, dtype=np.uint8)
 
     def reset(self):
         observation, action = self.env.reset()
