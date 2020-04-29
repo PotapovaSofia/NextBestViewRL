@@ -110,15 +110,13 @@ class DiskReplayBuffer:
     def sample(self, batch_size=1):
         indices = np.random.choice(self._size, batch_size)
         
-        state, action, reward, next_state, done, mask = [], [], [], [], [], []
-        for index in indices:
-            state.append(self._states[index])
-            action.append(self._actions[index])
-            reward.append(self._rewards[index])
-            next_state.append(self._next_states[index])
-            done.append(self._done[index])
-            mask.append(self._mask[index])
-            
+        state = self._states[indices]
+        action = self._actions[indices]
+        reward = self._rewards[indices]
+        next_state = self._next_states[indices]
+        done = self._done[indices]
+        mask = self._mask[indices]
+
         state      = Variable(torch.FloatTensor(state))
         next_state = Variable(torch.FloatTensor(next_state), volatile=True)
         action     = Variable(torch.LongTensor(np.concatenate(action)))
