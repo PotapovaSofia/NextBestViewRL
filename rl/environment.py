@@ -175,7 +175,7 @@ class DepthMapWrapper(gym.ObservationWrapper):
 
 
 class VoxelGridWrapper(gym.ObservationWrapper):
-    def __init__(self, env, grid_size=64):
+    def __init__(self, env, grid_size=64, occlusion_reward=False):
         super().__init__(env)
 
         self.grid_shape = ((grid_size, grid_size, grid_size))
@@ -211,7 +211,7 @@ class VoxelGridWrapper(gym.ObservationWrapper):
     def step_reward(self, observation):
         intersection = np.count_nonzero(np.logical_and(self.mesh_grid.surface_grid,
                                                        observation.surface_grid))
-        return intersection / self.gt_size 
+        return intersection / self.gt_size
 
 
 class CombiningObservationsWrapper(gym.Wrapper):
@@ -252,16 +252,27 @@ class CombiningObservationsWrapper(gym.Wrapper):
         self.combined_observation += observation
 
 
-class VoxelWrapper(gym.ObservationWrapper):
-    def __init__(self, env):
+class VoxelWrapper(gym.Wrapper):
+    def __init__(self, env, occlusion_reward=False, weight=10.):
         super().__init__(env)
 
         self.grid_shape = self.env.grid_shape
         self.observation_space = spaces.Box(0, 2, self.grid_shape, dtype=np.uint8)
 
+        self._occlusion_reward = occlusion_reward
+        self._weight = weight
+        self._grid_size = self.grid_shape[0] * self.grid_shape[1] * self.grid_shape[2]
+
     def reset(self):
         observation, action = self.env.reset()
         return self.observation(observation), action
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+
+        reward -= self.step_reward(observation)
+        print(reward)
+        return self.observation(observation), reward, done, info
 
     def observation(self, observation):
         return observation.grid()
@@ -271,6 +282,15 @@ class VoxelWrapper(gym.ObservationWrapper):
 
     def final_reward(self):
         return self.env.final_reward()
+
+    def step_reward(self, observation):
+        occlusion_reward = 0
+        if self._occlusion_reward:
+            occlusion_reward = np.count_nonzero(
+                observation.grid()==observation._occlusion_id)
+            occlusion_reward *= self._weight
+            occlusion_reward /= self._grid_size
+        return occlusion_reward
 
 
 class FrameStackWrapper(FrameStack):
