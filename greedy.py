@@ -13,7 +13,7 @@ def generate_observations(model):
         observations.append(set(observation.face_indexes))
     return observations
 
-def find_greedy_optimal(model, area_threshold=0.95):
+def find_greedy_optimal(model, area_threshold=0.95, do_rec=False):
     observations = generate_observations(model)
     
     uncovered = set(np.arange(0, model.mesh.faces.shape[0]))
@@ -29,22 +29,37 @@ def find_greedy_optimal(model, area_threshold=0.95):
         covered = covered.union(new)
         uncovered -= new
         view_points.append(view_point_index)
-        
-    return view_points
+
+    if not do_rec:
+        return view_points, 0.0
+
+    combined_observation = None
+    for vp in view_points:
+        observation = model.get_observation(vp)
+        if combined_observation is None:
+            combined_observation = observation
+        else:
+            combined_observation += observation
+
+    reconstructed_vertices, reconstructed_faces = get_mesh(combined_observation)
+    loss = model.surface_similarity(reconstructed_vertices, reconstructed_faces)
+
+    return view_points, loss
 
 def main():
     for num_points in  [100]:
         models_path = "./data/10abc"
-        optimal_numbers = []
+        optimal_numbers, losses = [], []
         # for model_name in tqdm(sorted(os.listdir(models_path))):
         # model_path = os.path.join(models_path, model_name)
-        model_path = "./data/Pyramid.obj"
+        model_path = "./data/00070090_73b2f35a88394199b6fd1ab8_003.obj"
         model = Model(model_path)
         model.generate_view_points(num_points)
-        optimal = find_greedy_optimal(model)
+        optimal, loss = find_greedy_optimal(model, do_rec=True)
         optimal_numbers.append(len(optimal))
+        losses.append(loss)
 
-        print("Model: ", model_path, "Number of view_points: ", num_points, "Optimal number: ",  np.mean(optimal_numbers))
+        print("Model: ", model_path, "Optimal number: ",  np.mean(optimal_numbers), "Loss: ", np.mean(losses))
 
 
 if __name__ == "__main__":
