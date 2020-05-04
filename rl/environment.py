@@ -101,10 +101,6 @@ class Environment(gym.Env):
         # THINK ABOUT yet another reward
         return self.model.observation_similarity(observation)
     
-    def final_reward(self, observation):
-        vertices, faces = self._get_mesh(observation)
-        reward = self.model.surface_similarity(vertices, faces)
-        
         if self.illustrate:
             illustrate_mesh(vertices, faces).display()
         return reward
@@ -115,7 +111,51 @@ class Environment(gym.Env):
                                                  depth=self._reconstruction_depth)
         return vertices, faces
 
-    
+
+class FinalRewardWrapper(gym.Wrapper):
+    def __init__(self, env, reconstruction_depth=10, illustrate=False):
+        super().__init__(env)
+
+        self.points = []
+        self.normals = []
+
+        self._depth = reconstruction_depth
+        self._illustrate = illustrate
+
+    def reset(self):
+        observation, action = self.env.reset()
+        self.points = [observation.points]
+        self.normals = [observation.normals]
+
+        return observation, action
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+
+        self.points.append(observation.points)
+        self.normals.append(observation.normals)
+
+        return observation, reward, done, info
+
+    def render(self, action, observation):
+        self.env.render(action, observation)
+
+    def final_reward(self):
+        points, normals = self.get_combined_points()
+        faces, vertices = poisson_reconstruction(points, normals,
+                                                 depth=self._depth)
+        reward = self.env.model.surface_similarity(vertices, faces)
+
+        if self._illustrate:
+            illustrate_mesh(vertices, faces).display()
+        return reward
+
+    def get_combined_points(self):
+        points = np.concatenate(self.points)
+        normals = np.concatenate(self.normals)
+        return points, normals
+
+
 class StepPenaltyRewardWrapper(gym.RewardWrapper):
     def __init__(self, env, weight=1.0):
         super().__init__(env)
@@ -244,7 +284,7 @@ class CombiningObservationsWrapper(gym.Wrapper):
         self.env.render(action, observation)
 
     def final_reward(self):
-        return self.env.final_reward(self.combined_observation)
+        return self.env.final_reward()
 
     def _combine_observations(self, observation):
         if self.combined_observation is None:
