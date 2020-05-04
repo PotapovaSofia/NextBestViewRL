@@ -48,16 +48,16 @@ def find_greedy_optimal(model, area_threshold=0.95, do_rec=False):
 
 def main():
     for num_points in  [100]:
-        models_path = "./data/10abc"
+        models_path = "./data/1kabc/simple/val"
         optimal_numbers, losses = [], []
-        # for model_name in tqdm(sorted(os.listdir(models_path))):
-        # model_path = os.path.join(models_path, model_name)
-        model_path = "./data/00070090_73b2f35a88394199b6fd1ab8_003.obj"
-        model = Model(model_path)
-        model.generate_view_points(num_points)
-        optimal, loss = find_greedy_optimal(model, do_rec=True)
-        optimal_numbers.append(len(optimal))
-        losses.append(loss)
+        for model_name in tqdm(sorted(os.listdir(models_path))):
+            model_path = os.path.join(models_path, model_name)
+        # model_path = "./data/1kabc/simple/train/00070090_73b2f35a88394199b6fd1ab8_003.obj"
+            model = Model(model_path)
+            model.generate_view_points(num_points)
+            optimal, loss = find_greedy_optimal(model, do_rec=True)
+            optimal_numbers.append(len(optimal))
+            losses.append(loss)
 
         print("Model: ", model_path, "Optimal number: ",  np.mean(optimal_numbers), "Loss: ", np.mean(losses))
 
