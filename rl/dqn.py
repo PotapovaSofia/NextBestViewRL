@@ -198,7 +198,7 @@ class CnnDQNA(nn.Module):
 
 
 class VoxelDQN(nn.Module):
-    def __init__(self, input_shape, num_actions, gamma=0.99, learning_rate=0.001):
+    def __init__(self, input_shape, num_actions, gamma=0.99, learning_rate=0.001, weight_decay=0.01):
         super().__init__()
 
         self.input_shape = input_shape
@@ -222,7 +222,7 @@ class VoxelDQN(nn.Module):
             nn.Linear(128, self.num_actions)
         )
 
-        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+        self.optimizer = optim.SGD(self.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     def forward(self, x):
         x = self.features(x)

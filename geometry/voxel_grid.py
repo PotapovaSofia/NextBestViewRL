@@ -63,8 +63,10 @@ class VoxelGridBuilder:
         self._surface_id = 2
         self._occlusion_id = 1
         self._free_indices = -1
+        self._bounds_eps = 0.1
 
     def build(self, points, bounds, direction=None):
+
         surface_indices = self._get_surface_indices(points, bounds)
         surface_grid = self._get_grid_from_indices(surface_indices,
                                                    id=self._surface_id)
@@ -82,8 +84,9 @@ class VoxelGridBuilder:
     def _get_surface_indices(self, points, bounds):
         indices = (((points - bounds[0]) * self._shape) /
                    (bounds[1] - bounds[0])).astype(np.int32)
-        mask = np.all(np.logical_and(indices >= 0, indices < self._size), axis=1)
-        indices = indices[mask]
+        indices = np.clip(indices, 0, self._size - 1)
+        # mask = np.all(np.logical_and(indices >= 0, indices < self._size), axis=1)
+        # indices = indices[mask]
         if len(indices) > 0:
             indices = np.unique(indices, axis=0)
         return indices
