@@ -11,7 +11,7 @@ from rl.utils import variable_fun
 USE_CUDA = torch.cuda.is_available()
 if USE_CUDA:
     Variable = variable_fun(torch.cuda.current_device())
-    Variable = variable_fun(1)
+    Variable = variable_fun(2)
 else:
     Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs)
 
