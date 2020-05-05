@@ -2,9 +2,9 @@ import numpy as np
 from trimesh.ray.ray_pyembree import RayMeshIntersector
 
 class RaycastingImaging:
-    def __init__(self, resolution_image=512, resolution_3d=0.02, projection="ortho"):
+    def __init__(self, resolution_image=512, resolution_3d_factor=10.24, projection="ortho"):
         self.resolution_image = resolution_image
-        self.resolution_3d = resolution_3d
+        self.resolution_3d = resolution_3d_factor / resolution_image
         self.projection = projection
         # self.fov = [115, 85, 80]
 

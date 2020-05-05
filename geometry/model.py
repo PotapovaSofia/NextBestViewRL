@@ -58,8 +58,8 @@ class Observation:
         depth_map = np.concatenate([self.depth_map, other.depth_map])
         normals_image = np.concatenate([self.normals_image, other.normals_image])
         
-        return Observation(points, normals, self.direction,
-                           vertex_indexes, face_indexes,
+        return Observation(points, normals, vertex_indexes,
+                           face_indexes, self.direction,
                            depth_map, normals_image)
 
     def transform(self, transform):
@@ -204,7 +204,6 @@ def get_mesh(observation):
 
 def combine_observations(observations):
     points = np.concatenate([observation.points for observation in observations])
-    occluded_points = np.concatenate([observation.occluded_points for observation in observations])
     normals = np.concatenate([observation.normals for observation in observations])
 
     vertex_indexes = np.unique(np.concatenate([observation.vertex_indexes
@@ -214,9 +213,10 @@ def combine_observations(observations):
 
     depth_map = np.concatenate([observation.depth_map for observation in observations])
     normals_image = np.concatenate([observation.normals_image for observation in observations])
+    direction = observations[0].direction
 
-    return Observation(points, occluded_points, normals,
-                       vertex_indexes, face_indexes,
+    return Observation(points, normals, vertex_indexes,
+                       face_indexes, direction,
                        depth_map, normals_image)
 
 
