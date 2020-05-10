@@ -73,11 +73,13 @@ class Observation:
     
     
 class Model:
-    def __init__(self, model_path, resolution_image=512):
+    def __init__(self, model_path, resolution_image=512, resolution_3d_factor=10.24):
+        self.resolution_image = resolution_image
+        self.resolution_3d_factor = resolution_3d_factor
+
         self.mesh = self.load_mesh(model_path)
         self.bounds = self.mesh.bounds
         self.transform = np.eye(4)
-        self.resolution_image = resolution_image
  
         self.raycaster = self.prepare_raycaster()
         
@@ -87,10 +89,10 @@ class Model:
         del self.mesh
         del self.raycaster
     
-    def load_mesh(self, mesh_path, shape_fabrication_extent=10.0):
+    def load_mesh(self, mesh_path, scale=0.75):
         mesh = trimesh.load_mesh(mesh_path)
         mesh_extent = np.max(mesh.bounding_box.extents)
-        mesh = mesh.apply_scale(shape_fabrication_extent / mesh_extent)
+        mesh = mesh.apply_scale(scale * self.resolution_3d_factor / mesh_extent)
         # TODO compute lengths of curves + quantiles
         mesh = mesh.apply_translation(-mesh.vertices.mean(axis=0))
         return mesh
@@ -100,12 +102,12 @@ class Model:
         raycaster.prepare(scanning_radius=np.max(self.mesh.bounding_box.extents) + 1.0)
         return raycaster
     
-    def generate_view_points(self, num_points=100):
+    def generate_view_points(self, num_points=100, radius_ext=1.5):
         sphere_points, phis, thetas = generate_sunflower_sphere_points(num_points)
 
         dists = self.mesh.vertices - self.mesh.center_mass
         radius = np.abs(dists).max()
-        radius *= 1.20
+        radius *= radius_ext
 
         sphere_points *= radius
         sphere_points += self.mesh.center_mass
