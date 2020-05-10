@@ -89,7 +89,7 @@ class Model:
         del self.mesh
         del self.raycaster
     
-    def load_mesh(self, mesh_path, scale=0.75):
+    def load_mesh(self, mesh_path, scale=0.5):
         mesh = trimesh.load_mesh(mesh_path)
         mesh_extent = np.max(mesh.bounding_box.extents)
         mesh = mesh.apply_scale(scale * self.resolution_3d_factor / mesh_extent)
@@ -198,9 +198,9 @@ class Model:
         return observation.face_indexes.shape[0] * 1.0 / self.mesh.faces.shape[0]
 
     
-def get_mesh(observation):
+def get_mesh(observation, depth=10):
     faces, vertices = poisson_reconstruction(
-        observation.points, observation.normals, depth=10)
+        observation.points, observation.normals, depth=depth)
     return vertices, faces
 
 

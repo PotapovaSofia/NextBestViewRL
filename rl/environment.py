@@ -63,6 +63,9 @@ class Environment(gym.Env):
         
         if self.illustrate:
             self.model.illustrate().display()
+
+            self.plot = k3d.plot()
+            self.plot.display()
         
         init_action = self.action_space.sample()
         observation = self.model.get_observation(init_action)
@@ -111,6 +114,11 @@ class Environment(gym.Env):
                                                  depth=self._reconstruction_depth)
         return vertices, faces
 
+    def final_reward(self, observation):
+        vertices, faces = self._get_mesh(observation)
+        reward = self.model.surface_similarity(vertices, faces)
+        return reward
+
 
 class FinalRewardWrapper(gym.Wrapper):
     def __init__(self, env, reconstruction_depth=10, illustrate=False):
@@ -140,7 +148,7 @@ class FinalRewardWrapper(gym.Wrapper):
     def render(self, action, observation):
         self.env.render(action, observation)
 
-    def final_reward(self):
+    def final_reward(self, observation):
         points, normals = self.get_combined_points()
         faces, vertices = poisson_reconstruction(points, normals,
                                                  depth=self._depth)
@@ -245,8 +253,8 @@ class VoxelGridWrapper(gym.ObservationWrapper):
         self.plot = illustrate_voxels(observation)
         self.plot.display()
 
-    def final_reward(self):
-        return self.env.final_reward()
+    def final_reward(self, observation):
+        return self.env.final_reward(observation)
 
     def step_reward(self, observation):
         intersection = np.count_nonzero(np.logical_and(self.mesh_grid.surface_grid,
@@ -284,7 +292,7 @@ class CombiningObservationsWrapper(gym.Wrapper):
         self.env.render(action, observation)
 
     def final_reward(self):
-        return self.env.final_reward()
+        return self.env.final_reward(self.combined_observation)
 
     def _combine_observations(self, observation):
         if self.combined_observation is None:
