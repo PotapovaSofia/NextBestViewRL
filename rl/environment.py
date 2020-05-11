@@ -112,14 +112,22 @@ class Environment(gym.Env):
         return vertices, faces
 
 
-class FinalRewardWrapper(gym.Wrapper):
-    def __init__(self, env, reconstruction_depth=10, illustrate=False):
+class MeshReconstructionWrapper(gym.Wrapper):
+    def __init__(self, env, reconstruction_depth=8, final_depth=10,
+                 scale_factor=1, final_scale_factor=1, done_thresh=0.1,
+                 do_step_reconstruction=False, illustrate=False):
         super().__init__(env)
 
         self.points = []
         self.normals = []
 
         self._depth = reconstruction_depth
+        self._final_depth = final_depth
+        self._scale_factor = scale_factor
+        self._final_scale_factor = final_scale_factor
+        self._done_thresh = done_thresh
+
+        self._do_step_reconstruction = do_step_reconstruction
         self._illustrate = illustrate
 
     def reset(self):
@@ -132,8 +140,11 @@ class FinalRewardWrapper(gym.Wrapper):
     def step(self, action):
         observation, reward, done, info = self.env.step(action)
 
-        self.points.append(observation.points)
-        self.normals.append(observation.normals)
+        self.points.append(observation.points[::self._final_scale_factor])
+        self.normals.append(observation.normals[::self._final_scale_factor])
+
+        if self._do_step_reconstruction:
+            done = done or self.done()
 
         return observation, reward, done, info
 
@@ -142,8 +153,18 @@ class FinalRewardWrapper(gym.Wrapper):
 
     def final_reward(self):
         points, normals = self.get_combined_points()
-        faces, vertices = poisson_reconstruction(points, normals,
-                                                 depth=self._depth)
+        reward = self.compute_reward(points, normals, self._final_depth)
+        return reward
+
+    def done(self):
+        points, normals = self.get_combined_points()
+        step_reward = self.compute_reward(points[::self._scale_factor],
+                                          normals[::self._scale_factor],
+                                          depth=self._depth)
+        return step_reward < self._done_thresh
+
+    def compute_reward(self, points, normals, depth):
+        faces, vertices = poisson_reconstruction(points, normals, depth=depth)
         reward = self.env.model.surface_similarity(vertices, faces)
 
         if self._illustrate:
