@@ -306,7 +306,7 @@ class CombiningObservationsWrapper(gym.Wrapper):
         done = done or combined_reward >= self._similarity_threshold
 
         new_reward = combined_reward - reward
-        print(reward, new_reward, combined_reward)
+        # print(reward, new_reward, combined_reward)
         return self.combined_observation, new_reward, done, info
 
     def render(self, action, observation):
@@ -340,7 +340,7 @@ class VoxelWrapper(gym.Wrapper):
         observation, reward, done, info = self.env.step(action)
 
         reward -= self.step_reward(observation)
-        print(reward)
+        # print(reward)
         return self.observation(observation), reward, done, info
 
     def observation(self, observation):

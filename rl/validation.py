@@ -17,7 +17,8 @@ def compute_metrics(env, agent, iter_cnt=10, max_iter=30):
                 break
         
         rewards.append(episode_reward)
-        final_reward = env.final_reward()
+        # final_reward = env.final_reward()
+        final_reward = 0
         final_rewards.append(final_reward)
         novp.append(t + 1)
     return np.mean(rewards), np.mean(final_rewards), np.mean(novp)
@@ -33,7 +34,7 @@ def create_env(model_path=None):
     # env = StepPenaltyRewardWrapper(env, weight=1.0)
     # env = DepthMapWrapper(env)
 
-    env = FinalRewardWrapper(env, reconstruction_depth=7)
+    env = MeshReconstructionWrapper(env, reconstruction_depth=7)
     env = VoxelGridWrapper(env)
     env = CombiningObservationsWrapper(env)
     env = VoxelWrapper(env)

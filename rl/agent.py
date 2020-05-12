@@ -35,10 +35,10 @@ class ContDQNAgent:
                 q_value = self.model(state, action)
                 q_values.append(q_value.item())
             action  = np.argmax(q_values)
-            print("Action: ", action)
+            # print("Action: ", action)
         else:
             action = random.randrange(self.num_actions)
-            print("Action: ", action, "(random)")
+            # print("Action: ", action, "(random)")
         return action
 
     def compute_td_loss(self, state, action, reward, next_state, done):
@@ -105,10 +105,10 @@ class DQNAgent:
             q_value = F.softmax(q_value)
             q_value *= mask
             action = q_value.max(1)[1].item()
-            print("Action: ", action)
+            # print("Action: ", action)
         else:
             action = np.random.choice(np.arange(self.num_actions)[mask])
-            print("Action: ", action, "(random)")
+            # print("Action: ", action, "(random)")
         return action
 
     def compute_td_loss(self, state, action, reward, next_state, done, mask):
