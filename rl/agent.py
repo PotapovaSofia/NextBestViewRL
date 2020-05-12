@@ -75,12 +75,13 @@ class ContDQNAgent:
 class DQNAgent:
     def __init__(self, observation_shape, num_actions, device='cuda:0',
                  gamma=0.99, learning_rate=0.001, weight_decay=0.0,
-                 clip_gradient=True, optim_name='Adam'):
+                 clip_gradient=True, optim_name='Adam', huber_loss=False):
 
         self.num_actions = num_actions
         self.gamma = gamma
         self.device = device
 
+        self.huber_loss = huber_loss
         self.clip_gradient = clip_gradient
         self.optim_name = optim_name
         self.weight_decay = weight_decay
@@ -127,7 +128,10 @@ class DQNAgent:
         next_q_value     = next_q_values.max(1)[0]
         expected_q_value = reward + self.gamma * next_q_value * (1 - done)
 
-        loss = (q_value - expected_q_value.detach()).pow(2).mean()
+        if self.huber_loss:
+            loss = huber_loss(q_value, expected_q_value.detach(), delta=10.0)
+        else:
+            loss = (q_value - expected_q_value.detach()).pow(2).mean()
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -142,3 +146,11 @@ class DQNAgent:
         self.optimizer.step()
         return loss.item()
 
+
+def huber_loss(q_value, expected_q_value, delta=1.0):
+    error = q_value - expected_q_value
+    quadratic_term = error * error / 2
+    linear_term = torch.abs(error) - 0.5
+    use_linear_term = (torch.abs(error) > delta).float()
+    loss = use_linear_term * linear_term + (1 - use_linear_term) * quadratic_term
+    return loss.mean()
