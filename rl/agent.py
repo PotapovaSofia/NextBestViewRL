@@ -91,7 +91,7 @@ class DQNAgent:
                                        lr=learning_rate,
                                        weight_decay=weight_decay)
         elif optim_name == "RMSProp":
-            self.optimizer = optim.RMSProp(self.model.parameters(),
+            self.optimizer = optim.RMSprop(self.model.parameters(),
                                            lr=learning_rate,
                                            weight_decay=weight_decay)
         elif optim_name == "Adam":
@@ -132,8 +132,9 @@ class DQNAgent:
         self.optimizer.zero_grad()
         loss.backward()
         if self.clip_gradient:
-            for param in self.model.parameters():
-                param.grad.data.clamp_(-1, 1)
+            nn.utils.clip_grad_norm_(model.parameters(), 10)
+            # for param in self.model.parameters():
+            #     param.grad.data.clamp_(-1, 1)
 
         if self.optim_name == 'Adam':
             for group in self.optimizer.param_groups:
