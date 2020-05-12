@@ -11,7 +11,7 @@ def build_epsilon_func(epsilon_start=1.0, epsilon_final=0.05, epsilon_decay=1000
 
 
 def plot(save_path, frame_idx, rewards, novps, losses):
-    clear_output(True)
+    # clear_output(True)
     plt.figure(figsize=(20,5))
     plt.subplot(131)
     plt.title('frame %s. reward: %s' % (frame_idx, np.mean(rewards[-10:])))
