@@ -136,7 +136,7 @@ class DQNAgent:
         self.optimizer.zero_grad()
         loss.backward()
         if self.clip_gradient:
-            nn.utils.clip_grad_norm_(model.parameters(), 10)
+            nn.utils.clip_grad_norm_(self.model.parameters(), 10)
             # for param in self.model.parameters():
             #     param.grad.data.clamp_(-1, 1)
 
@@ -222,8 +222,9 @@ class DDQNAgent:
         self.optimizer.zero_grad()
         loss.backward()
         if self.clip_gradient:
-            for param in self.model.parameters():
-                param.grad.data.clamp_(-1, 1)
+            nn.utils.clip_grad_norm_(self.model.parameters(), 10)
+            # for param in self.model.parameters():
+            #     param.grad.data.clamp_(-1, 1)
 
         if self.optim_name == 'Adam':
             for group in self.optimizer.param_groups:
