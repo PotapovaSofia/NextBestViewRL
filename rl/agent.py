@@ -73,8 +73,8 @@ class ContDQNAgent:
 
 
 class DQNAgent:
-    def __init__(self, observation_shape, num_actions, device='cuda:0',
-                 gamma=0.99, learning_rate=0.001, weight_decay=0.0,
+    def __init__(self, observation_shape, num_actions, model_path=None,
+                 device='cuda:0', gamma=0.99, learning_rate=0.001, weight_decay=0.0,
                  clip_gradient=True, optim_name='Adam', huber_loss=False):
 
         self.num_actions = num_actions
@@ -86,7 +86,10 @@ class DQNAgent:
         self.optim_name = optim_name
         self.weight_decay = weight_decay
 
-        self.model = VoxelDQN(observation_shape, num_actions).to(device)
+        if model_path is not None:
+            self.model = torch.load(model_path).to(device)
+        else:
+            self.model = VoxelDQN(observation_shape, num_actions).to(device)
         if optim_name == "SGD":
             self.optimizer = optim.SGD(self.model.parameters(),
                                        lr=learning_rate,
@@ -136,7 +139,7 @@ class DQNAgent:
         self.optimizer.zero_grad()
         loss.backward()
         if self.clip_gradient:
-            nn.utils.clip_grad_norm_(model.parameters(), 10)
+            nn.utils.clip_grad_norm_(self.model.parameters(), 10)
             # for param in self.model.parameters():
             #     param.grad.data.clamp_(-1, 1)
 
