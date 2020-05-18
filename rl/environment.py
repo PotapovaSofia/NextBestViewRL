@@ -53,12 +53,10 @@ class Environment(gym.Env):
         Reset the environment for new episode.
         Randomly (or not) generate CAD model for this episode.
         """
-        if self.model_path is not None:
-            model_path = self.model_path
-        elif self.models_path is not None:
-            model_path = os.path.join(self.models_path,
+        if self.models_path is not None:
+            self.model_path = os.path.join(self.models_path,
                                       random.sample(os.listdir(self.models_path), 1)[0])
-        self.model = Model(model_path, resolution_image=self.image_size)
+        self.model = Model(self.model_path, resolution_image=self.image_size)
         self.model.generate_view_points(self.number_of_view_points)
         
         if self.illustrate:
@@ -152,7 +150,17 @@ class MeshReconstructionWrapper(gym.Wrapper):
         self.normals.append(observation.normals[::self._final_scale_factor])
 
         if self._do_step_reconstruction:
-            done = done or self.done()
+            # TODO merge with CombinedObservations
+            points, normals = self.get_combined_points()
+            step_reward = self.compute_reward(points[::self._scale_factor],
+                                              normals[::self._scale_factor],
+                                              depth=self._depth)
+            if step_reward < self._done_thresh:
+                print("I'm done!")
+            done = done or step_reward < self._done_thresh
+
+            print(reward, step_reward)
+            reward += step_reward
 
         return observation, reward, done, info
 
@@ -163,13 +171,6 @@ class MeshReconstructionWrapper(gym.Wrapper):
         points, normals = self.get_combined_points()
         reward = self.compute_reward(points, normals, self._final_depth)
         return reward
-
-    def done(self):
-        points, normals = self.get_combined_points()
-        step_reward = self.compute_reward(points[::self._scale_factor],
-                                          normals[::self._scale_factor],
-                                          depth=self._depth)
-        return step_reward < self._done_thresh
 
     def compute_reward(self, points, normals, depth):
         faces, vertices = poisson_reconstruction(points, normals, depth=depth)
@@ -193,7 +194,7 @@ class StepPenaltyRewardWrapper(gym.RewardWrapper):
             
     def reward(self, reward):
         # THINK ABOUT
-        reward = -1 + self._similarity_reward_weight * reward
+        reward = -1 * self._similarity_reward_weight + reward
         return reward
     
     def render(self, action, observation):
@@ -290,10 +291,12 @@ class CombiningObservationsWrapper(gym.Wrapper):
         self._similarity_threshold = 0.95
 
         self.combined_observation = None
+        self.prev_reward = None
 
     def reset(self):
         observation, action = self.env.reset()
         self.combined_observation = observation
+        self.prev_reward = self.env.step_reward(observation)
 
         return self.combined_observation, action
 
@@ -303,10 +306,13 @@ class CombiningObservationsWrapper(gym.Wrapper):
         self._combine_observations(observation)
 
         combined_reward = self.env.step_reward(self.combined_observation)
+        
         done = done or combined_reward >= self._similarity_threshold
 
-        new_reward = combined_reward - reward
-        # print(reward, new_reward, combined_reward)
+        # new_reward = combined_reward - reward
+        new_reward = combined_reward - self.prev_reward
+        print(reward, new_reward, combined_reward)
+        self.prev_reward = combined_reward
         return self.combined_observation, new_reward, done, info
 
     def render(self, action, observation):
