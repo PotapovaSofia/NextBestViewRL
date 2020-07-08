@@ -160,7 +160,7 @@ class DQNAgent:
 
 class DDQNAgent:
     def __init__(self, observation_shape, num_actions, device='cuda:0',
-                 gamma=0.99, learning_rate=0.001, weight_decay=0.0,
+                 gamma=0.99, learning_rate=0.001, weight_decay=0.0, prev_ckpt=None,
                  update_tar_interval=1000, clip_gradient=True, optim_name='Adam'):
 
         self.num_actions = num_actions
@@ -173,7 +173,10 @@ class DDQNAgent:
 
         self.update_tar_interval = update_tar_interval
 
-        self.model = VoxelDQN(observation_shape, num_actions).to(device)
+        if prev_ckpt is not None:
+            self.model = torch.load(prev_ckpt).to(device)
+        else:
+            self.model = VoxelDQN(observation_shape, num_actions).to(device)
         self.target_model = VoxelDQN(observation_shape, num_actions).to(device)
         self.target_model.load_state_dict(self.model.state_dict())
 

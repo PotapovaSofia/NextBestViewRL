@@ -34,12 +34,7 @@ class Environment(gym.Env):
 
         self.action_space = spaces.Discrete(number_of_view_points)
         self.observation_space = spaces.Dict({
-            # 'points':  spaces.Box(-np.inf, np.inf, (MAX_POINS_CNT, 3), dtype=np.float32),
-            # 'normals': spaces.Box(-np.inf, np.inf, (MAX_POINS_CNT, 3), dtype=np.float32),
-            # 'vertex_indexes': spaces.Box(-np.inf, np.inf, (MAX_POINS_CNT, 3), dtype=np.int32),
-            # 'face_indexes': spaces.Box(-np.inf, np.inf, (MAX_POINS_CNT, 3), dtype=np.int32),
             'depth_map': spaces.Box(-np.inf, np.inf, (image_size, image_size), dtype=np.float32),
-            # 'normals_image': spaces.Box(-np.inf, np.inf, (VIEW_POINTS_CNT, image_size, image_size), dtype=np.float32)
         })
 
         self._similarity_threshold = similarity_threshold
@@ -150,17 +145,12 @@ class MeshReconstructionWrapper(gym.Wrapper):
         self.normals.append(observation.normals[::self._final_scale_factor])
 
         if self._do_step_reconstruction:
-            # TODO merge with CombinedObservations
             points, normals = self.get_combined_points()
             step_reward = self.compute_reward(points[::self._scale_factor],
                                               normals[::self._scale_factor],
                                               depth=self._depth)
-            if step_reward < self._done_thresh:
-                print("I'm done!")
             done = done or step_reward < self._done_thresh
-
-            print(reward, step_reward)
-            reward += step_reward
+            reward = -1 * step_reward
 
         return observation, reward, done, info
 
@@ -170,7 +160,7 @@ class MeshReconstructionWrapper(gym.Wrapper):
     def final_reward(self, observation):
         points, normals = self.get_combined_points()
         reward = self.compute_reward(points, normals, self._final_depth)
-        return reward
+        return 1. / reward
 
     def compute_reward(self, points, normals, depth):
         faces, vertices = poisson_reconstruction(points, normals, depth=depth)
@@ -193,8 +183,7 @@ class StepPenaltyRewardWrapper(gym.RewardWrapper):
         self._similarity_reward_weight = weight
             
     def reward(self, reward):
-        # THINK ABOUT
-        reward = -1 * self._similarity_reward_weight + reward
+        reward = -1 + self._similarity_reward_weight * reward
         return reward
     
     def render(self, action, observation):
@@ -308,10 +297,9 @@ class CombiningObservationsWrapper(gym.Wrapper):
         combined_reward = self.env.step_reward(self.combined_observation)
         
         done = done or combined_reward >= self._similarity_threshold
-
-        # new_reward = combined_reward - reward
-        new_reward = combined_reward - self.prev_reward
-        print(reward, new_reward, combined_reward)
+        if done:
+            reward += self.final_reward()
+        new_reward = combined_reward - self.prev_reward + reward
         self.prev_reward = combined_reward
         return self.combined_observation, new_reward, done, info
 
@@ -346,7 +334,6 @@ class VoxelWrapper(gym.Wrapper):
         observation, reward, done, info = self.env.step(action)
 
         reward -= self.step_reward(observation)
-        # print(reward)
         return self.observation(observation), reward, done, info
 
     def observation(self, observation):
