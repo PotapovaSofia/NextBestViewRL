@@ -80,9 +80,9 @@ class Model:
         self.mesh = self.load_mesh(model_path)
         self.bounds = self.mesh.bounds
         self.transform = np.eye(4)
- 
+
         self.raycaster = self.prepare_raycaster()
-        
+
         self.view_points = []
 
     def __del__(self):

@@ -79,7 +79,7 @@ class VoxelGridBuilder:
                                                         id=self._occlusion_id)
             free_indices = self._get_space_indices(surface_indices, -direction, n=3)
             free_grid = self._get_grid_from_indices(free_indices, id=self._free_indices)
-        return VoxelGrid(surface_grid, occluded_grid, free_grid)
+        return VoxelGrid(surface_grid, occluded_grid, free_grid, size=self._size)
 
     def _get_surface_indices(self, points, bounds):
         indices = (((points - bounds[0]) * self._shape) /
