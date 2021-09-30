@@ -34,7 +34,12 @@ class Environment(gym.Env):
 
         self.action_space = spaces.Discrete(number_of_view_points)
         self.observation_space = spaces.Dict({
+            # 'points':  spaces.Box(-np.inf, np.inf, (MAX_POINS_CNT, 3), dtype=np.float32),
+            # 'normals': spaces.Box(-np.inf, np.inf, (MAX_POINS_CNT, 3), dtype=np.float32),
+            # 'vertex_indexes': spaces.Box(-np.inf, np.inf, (MAX_POINS_CNT, 3), dtype=np.int32),
+            # 'face_indexes': spaces.Box(-np.inf, np.inf, (MAX_POINS_CNT, 3), dtype=np.int32),
             'depth_map': spaces.Box(-np.inf, np.inf, (image_size, image_size), dtype=np.float32),
+            # 'normals_image': spaces.Box(-np.inf, np.inf, (VIEW_POINTS_CNT, image_size, image_size), dtype=np.float32)
         })
 
         self._similarity_threshold = similarity_threshold
@@ -43,15 +48,17 @@ class Environment(gym.Env):
         self.model = None
         self.plot = None
 
-    def reset(self):
+    def reset(self, init_action=None):
         """
         Reset the environment for new episode.
         Randomly (or not) generate CAD model for this episode.
         """
-        if self.models_path is not None:
-            self.model_path = os.path.join(self.models_path,
+        if self.model_path is not None:
+            model_path = self.model_path
+        elif self.models_path is not None:
+            model_path = os.path.join(self.models_path,
                                       random.sample(os.listdir(self.models_path), 1)[0])
-        self.model = Model(self.model_path, resolution_image=self.image_size)
+        self.model = Model(model_path, resolution_image=self.image_size)
         self.model.generate_view_points(self.number_of_view_points)
         
         if self.illustrate:
@@ -60,7 +67,8 @@ class Environment(gym.Env):
             self.plot = k3d.plot()
             self.plot.display()
         
-        init_action = self.action_space.sample()
+        if init_action is None:
+            init_action = self.action_space.sample()
         observation = self.model.get_observation(init_action)
         return observation, init_action
 
@@ -131,8 +139,8 @@ class MeshReconstructionWrapper(gym.Wrapper):
         self._do_step_reconstruction = do_step_reconstruction
         self._illustrate = illustrate
 
-    def reset(self):
-        observation, action = self.env.reset()
+    def reset(self, init_action=None):
+        observation, action = self.env.reset(init_action)
         self.points = [observation.points]
         self.normals = [observation.normals]
 
@@ -145,12 +153,7 @@ class MeshReconstructionWrapper(gym.Wrapper):
         self.normals.append(observation.normals[::self._final_scale_factor])
 
         if self._do_step_reconstruction:
-            points, normals = self.get_combined_points()
-            step_reward = self.compute_reward(points[::self._scale_factor],
-                                              normals[::self._scale_factor],
-                                              depth=self._depth)
-            done = done or step_reward < self._done_thresh
-            reward = -1 * step_reward
+            done = done or self.done()
 
         return observation, reward, done, info
 
@@ -160,7 +163,14 @@ class MeshReconstructionWrapper(gym.Wrapper):
     def final_reward(self, observation):
         points, normals = self.get_combined_points()
         reward = self.compute_reward(points, normals, self._final_depth)
-        return 1. / reward
+        return reward
+
+    def done(self):
+        points, normals = self.get_combined_points()
+        step_reward = self.compute_reward(points[::self._scale_factor],
+                                          normals[::self._scale_factor],
+                                          depth=self._depth)
+        return step_reward < self._done_thresh
 
     def compute_reward(self, points, normals, depth):
         faces, vertices = poisson_reconstruction(points, normals, depth=depth)
@@ -183,6 +193,7 @@ class StepPenaltyRewardWrapper(gym.RewardWrapper):
         self._similarity_reward_weight = weight
             
     def reward(self, reward):
+        # THINK ABOUT
         reward = -1 + self._similarity_reward_weight * reward
         return reward
     
@@ -205,8 +216,8 @@ class DepthMapWrapper(gym.ObservationWrapper):
         
         self.last_observation = None
 
-    def reset(self):
-        observation, action = self.env.reset()
+    def reset(self, init_action=None):
+        observation, action = self.env.reset(init_action)
         return self.observation(observation), action
 
     def observation(self, observation):
@@ -247,8 +258,8 @@ class VoxelGridWrapper(gym.ObservationWrapper):
         self.bounds = None
         self.plot = k3d.plot(name='wrapper')
 
-    def reset(self):
-        observation, action = self.env.reset()
+    def reset(self, init_action=None):
+        observation, action = self.env.reset(init_action)
         self.bounds = self.env.model.bounds
         
         self.mesh_grid = self.builder.build(self.env.model.mesh.vertices, self.bounds)
@@ -280,12 +291,10 @@ class CombiningObservationsWrapper(gym.Wrapper):
         self._similarity_threshold = 0.95
 
         self.combined_observation = None
-        self.prev_reward = None
 
-    def reset(self):
-        observation, action = self.env.reset()
+    def reset(self, init_action=None):
+        observation, action = self.env.reset(init_action)
         self.combined_observation = observation
-        self.prev_reward = self.env.step_reward(observation)
 
         return self.combined_observation, action
 
@@ -295,12 +304,10 @@ class CombiningObservationsWrapper(gym.Wrapper):
         self._combine_observations(observation)
 
         combined_reward = self.env.step_reward(self.combined_observation)
-        
         done = done or combined_reward >= self._similarity_threshold
-        if done:
-            reward += self.final_reward()
-        new_reward = combined_reward - self.prev_reward + reward
-        self.prev_reward = combined_reward
+
+        new_reward = combined_reward - reward
+        # print(reward, new_reward, combined_reward)
         return self.combined_observation, new_reward, done, info
 
     def render(self, action, observation):
@@ -326,14 +333,15 @@ class VoxelWrapper(gym.Wrapper):
         self._weight = weight
         self._grid_size = self.grid_shape[0] * self.grid_shape[1] * self.grid_shape[2]
 
-    def reset(self):
-        observation, action = self.env.reset()
+    def reset(self, init_action=None):
+        observation, action = self.env.reset(init_action)
         return self.observation(observation), action
 
     def step(self, action):
         observation, reward, done, info = self.env.step(action)
 
         reward -= self.step_reward(observation)
+        # print(reward)
         return self.observation(observation), reward, done, info
 
     def observation(self, observation):

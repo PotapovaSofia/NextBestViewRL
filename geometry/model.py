@@ -80,9 +80,9 @@ class Model:
         self.mesh = self.load_mesh(model_path)
         self.bounds = self.mesh.bounds
         self.transform = np.eye(4)
- 
+
         self.raycaster = self.prepare_raycaster()
-        
+
         self.view_points = []
 
     def __del__(self):
@@ -160,16 +160,20 @@ class Model:
                                   normals_image)
         return observation
 
-    def get_observation(self, view_point_idx):
-        view_point = self.view_points[view_point_idx]
+    def get_observation_from_point(self, view_point):
         self.rotate_to_view_point(view_point)
-        
+
         observation = self.raycast()
         observation.transform(self.transform)
-        
+
         self.rotate_to_origin()
-        
+
         return observation
+
+
+    def get_observation(self, view_point_idx):
+        view_point = self.view_points[view_point_idx]
+        return self.get_observation_from_point(view_point)
     
     def get_occluded_points(self, surface_points, size=64):
         step = (self.mesh.bounds[1] - self.mesh.bounds[0]).max() / size
